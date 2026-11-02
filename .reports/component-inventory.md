@@ -13,28 +13,52 @@ memoized widget accessors, `.tap` assembly).
 
 | | Upstream | `ruby` branch |
 |---|---:|---:|
-| Widget classes (`__gtype_name__` on a `Gtk.Widget` subclass) | 24 | 1 |
+| Widget classes (`__gtype_name__` on a `Gtk.Widget` subclass) | 24 | 3 (application shell, preferences, shortcuts) |
 | Blueprint templates / standalone roots | 23 `.blp` + 1 `.ui` | 0 (none by design) |
 | Alert dialogs | 5 live, 3 orphaned `.blp` | 0 |
-| `app.*` actions | 16 | 0 |
+| `app.*` actions | 16 | 4 |
 | `win.*` actions | 1 | 0 |
 | Widget-local action groups | 1 (`albumcoverbutton.*`, 3 items) | 0 |
-| Keyboard accelerators | 9 | 0 |
-| GSettings keys | 7 (+1 enum) | 0 |
-| Distinct CSS classes defined in `src/style*.css` | 27 | 0 |
+| Keyboard accelerators | 9 | 2 |
+| GSettings keys | 7 (+1 enum) | 7 (+1 enum) |
+| Distinct CSS classes defined in `src/style*.css` | 27 | 27 |
 | `po/` catalogue | 36 locales, 50 POTFILES entries | none |
 
-The port is at its scaffold: `lib/eartag.rb` requires
-`lib/eartag/application.rb`, which is a `Gtk::Application` plus an
-`Adwaita::ApplicationWindow` holding one `Adwaita::StatusPage` reading "The Ruby
-port has not been written yet." Every component below except the application
-shell is absent.
+## What `lib/` holds today
+
+The support layer, the settings, the stylesheet and the two standalone dialogs
+are ported; no file-editing UI is.
+
+| `lib/*.rb` | Covers | § |
+|---|---|---:|
+| `eartag.rb` | the entry point | — |
+| `eartag/application.rb` | application, window shell, header bar, primary menu, About, 4 actions | 1 |
+| `preferences_dialog.rb` | the preferences dialog | 4 |
+| `shortcuts_dialog.rb` | the shortcuts dialog | 5 |
+| `style.rb` | all three stylesheets | 32 |
+| `placeholder_syntax_highlighter.rb` | pattern-placeholder colouring | 31 |
+| `settings.rb` | the 7 GSettings keys + the cover-size enum | 34 |
+| `tags.rb` | the tag vocabulary (`TAG_NAMES`, `EXTRA_TAGS`, cover slots) | 34 |
+| `validation.rb` | `VALID_AUDIO_MIMES`, mimetype sniffing | 34 |
+| `extract_tags.rb` | the extract-from-filename pattern engine | 34 |
+| `entry_limiters.rb` | entry input filtering | 34 |
+| `async_task.rb` | `progress` / `progress-pulse` / `task-done` | 34 |
+| `logger.rb` | the log buffer the error dialog shows | 34 |
+| `misc.rb` | shared helpers | 34 |
+
+Everything else below is absent: the window, the sidebar, the editor pane and
+all of its rows, the three task dialogs, the identify flow, the alert dialogs,
+the file manager, the backends, MusicBrainz, the icons and `po/`.
 
 ---
 
 ## 1. `src/main.py` — the application: actions, accelerators, About
 
-→ `lib/eartag/application.rb` — **exists as a placeholder**, carries none of this.
+→ `lib/eartag/application.rb` — **partial**. The application object, window
+shell, header bar, primary menu button, About dialog and four actions
+(`preferences`, `shortcuts`, `about`, `quit`) exist. The 12 file-related
+actions, their accelerators, `HANDLES_OPEN`/`open`, and the full 11-item menu
+are still absent.
 
 `Application(Adw.Application)` with `HANDLES_OPEN`, `resource_base_path`, an
 `open` handler that loads paths (expanding a directory argument) and a
@@ -165,7 +189,7 @@ by CSS, not by a property.
 
 ## 4. `src/window.py` (`EartagPreferencesDialog`) + `src/ui/settings.blp` — preferences
 
-→ `lib/preferences_dialog.rb` — **absent**.
+→ `lib/preferences_dialog.rb` — **present**.
 
 One `Adw.PreferencesPage`, two groups.
 
@@ -183,7 +207,7 @@ needs as well: nicks are `0 / 250 / 500 / 1200 / 2000`, default "1200 px".
 
 ## 5. `src/ui/shortcuts.blp` — keyboard shortcuts window
 
-→ `lib/shortcuts_dialog.rb` — **absent**.
+→ `lib/shortcuts_dialog.rb` — **present**.
 
 A standalone `Adw.ShortcutsDialog` root (no backing Python class; loaded by
 libadwaita from the `shortcuts-dialog.ui` GResource alias). Three
@@ -561,7 +585,7 @@ and `renamefailure.blp` are listed in `po/POTFILES.in` but appear in neither
 
 ## 31. `src/utils/tagsyntaxhighlight.py`
 
-→ `lib/placeholder_syntax_highlighter.rb` — **absent**.
+→ `lib/placeholder_syntax_highlighter.rb` — **present**.
 
 `EartagPlaceholderSyntaxHighlighter` — not a widget, but it is what the pattern
 entries in §22 and §23 look like: it applies `Pango` attributes to `{tag}`
@@ -570,7 +594,8 @@ what drives the `error` class on both entries.
 
 ## 32. `src/style.css`, `src/style-dark.css`, `src/style-hc.css`
 
-→ `lib/style.rb` (or a `data/` asset loaded by a `Gtk::CssProvider`) — **absent**.
+→ `lib/style.rb` — **present** (a `Gtk::CssProvider` per variant: base, dark,
+high-contrast).
 
 27 classes. Applied somewhere: `artist`, `album-cover`, `drag-target`,
 `hover-highlight`, `filelist-item`, `cover-image`, `nofiles`,
@@ -598,7 +623,12 @@ independently of it.
 
 ## 34. Support files with no component of their own
 
-Needed for the components above to work; each is one `lib/*.rb`:
+Needed for the components above to work; each is one `lib/*.rb`. **Present**:
+`async_task.rb`, `entry_limiters.rb`, `extract_tags.rb`, `logger.rb`,
+`misc.rb`, `settings.rb`, `tags.rb`, `validation.rb`. **Absent**:
+`backends/*.rb`, `musicbrainz.rb`, `queue_download.rb`, the event-loop shim,
+`data/icons/` and `po/`.
+
 
 | Upstream | → | Why |
 |---|---|---|
