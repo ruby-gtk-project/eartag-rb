@@ -25,6 +25,7 @@
           libadwaita
           harfbuzz
           librsvg
+          taglib
         ]
         # The Ruby `pkg-config` gem resolves `Requires.private` transitively and
         # hard-fails if any .pc in the chain is missing, so gtk4's whole private
@@ -87,6 +88,13 @@
           graphene1 = rubyGnomeGem;
           adwaita = rubyGnomeGem;
           rsvg2 = rubyGnomeGem;
+
+          # taglib-ruby's extconf.rb uses have_library('tag')/have_library('stdc++')
+          # rather than pkg-config, so it just needs the library (and its headers)
+          # on the compiler's search path.
+          "taglib-ruby" = attrs: {
+            buildInputs = [ pkgs.taglib ];
+          };
         };
 
         # `makeSearchPath` would take each package's *first* output, and glib's
