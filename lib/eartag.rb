@@ -26,5 +26,6 @@ require_relative 'file_manager'
 # the same reason as the layers above: loading the app loads the whole port.
 require_relative 'popover_button'
 require_relative 'model_expander_row'
+require_relative 'file_info_label'
 
 require_relative 'eartag/application'

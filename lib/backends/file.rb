@@ -269,6 +269,7 @@ module Backends
     # fills in @length (seconds) and @bitrate (kbps).
     def length = @length
     def bitrate = @bitrate
+    def channels = @channels || 0
 
     # Cover art handling. No backend supports this yet (see
     # supports_album_covers?), so these are deliberately inert.

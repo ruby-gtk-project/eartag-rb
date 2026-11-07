@@ -69,6 +69,7 @@ module Backends
         end
         @length = properties&.length_in_seconds
         @bitrate = properties&.bitrate
+        @channels = properties&.channels
       end
 
       @tags.reject! { |_name, value| value.nil? || value.to_s.empty? }
