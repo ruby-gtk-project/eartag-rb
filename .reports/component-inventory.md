@@ -13,7 +13,7 @@ memoized widget accessors, `.tap` assembly).
 
 | | Upstream | `ruby` branch |
 |---|---:|---:|
-| Widget classes (`__gtype_name__` on a `Gtk.Widget` subclass) | 24 | 3 (application shell, preferences, shortcuts) |
+| Widget classes (`__gtype_name__` on a `Gtk.Widget` subclass) | 24 | 5 (application shell, preferences, shortcuts, popover button, model expander row) |
 | Blueprint templates / standalone roots | 23 `.blp` + 1 `.ui` | 0 (none by design) |
 | Alert dialogs | 5 live, 3 orphaned `.blp` | 0 |
 | `app.*` actions | 16 | 4 |
@@ -22,19 +22,26 @@ memoized widget accessors, `.tap` assembly).
 | Keyboard accelerators | 9 | 2 |
 | GSettings keys | 7 (+1 enum) | 7 (+1 enum) |
 | Distinct CSS classes defined in `src/style*.css` | 27 | 27 |
+| Backend format modules (`file.py` + 4 mutagen backends) | 1 base + 4 formats (id3, mp4, vorbis, asf) | 1 base + 3 formats (id3, mp4, vorbis) — **asf/WMA has no Ruby backend** |
 | `po/` catalogue | 36 locales, 50 POTFILES entries | none |
 
 ## What `lib/` holds today
 
-The support layer, the settings, the stylesheet and the two standalone dialogs
-are ported; no file-editing UI is.
+The support layer, the settings, the stylesheet, the two standalone dialogs,
+the two small shared widgets (popover button, model expander row) and the
+model layer (base `EartagFile` plus the id3/mp4/vorbis backends) are ported;
+no file-editing UI (window, sidebar, editor pane, task dialogs, identify
+flow, file manager) is.
 
 | `lib/*.rb` | Covers | § |
 |---|---|---:|
 | `eartag.rb` | the entry point | — |
 | `eartag/application.rb` | application, window shell, header bar, primary menu, About, 4 actions | 1 |
+| `eartag/rb/version.rb` | gem version constant (packaging, no upstream component) | — |
 | `preferences_dialog.rb` | the preferences dialog | 4 |
 | `shortcuts_dialog.rb` | the shortcuts dialog | 5 |
+| `popover_button.rb` | the shared popover-button widget | 17 |
+| `model_expander_row.rb` | the shared `AdwExpanderRow` subclass bound to a model | 18 |
 | `style.rb` | all three stylesheets | 32 |
 | `placeholder_syntax_highlighter.rb` | pattern-placeholder colouring | 31 |
 | `settings.rb` | the 7 GSettings keys + the cover-size enum | 34 |
@@ -45,10 +52,20 @@ are ported; no file-editing UI is.
 | `async_task.rb` | `progress` / `progress-pulse` / `task-done` | 34 |
 | `logger.rb` | the log buffer the error dialog shows | 34 |
 | `misc.rb` | shared helpers | 34 |
+| `backends/file.rb` | `EartagFile` base class: tag model, `TAG_NAMES`, `EXTRA_TAGS`, `CoverType` | 34 |
+| `backends/file_id3.rb` | the MP3/ID3 backend | 34 |
+| `backends/file_mp4.rb` | the M4A/MP4 backend | 34 |
+| `backends/file_vorbis.rb` | the FLAC/OGG Vorbis backend | 34 |
 
-Everything else below is absent: the window, the sidebar, the editor pane and
-all of its rows, the three task dialogs, the identify flow, the alert dialogs,
-the file manager, the backends, MusicBrainz, the icons and `po/`.
+| `file_manager.rb` | `FileManager` model half: `backend_for`/`file_from_path` dispatch by mimetype, plus `Manager` (open-files array, `is_modified?`/`has_error?` bookkeeping, `save_all`) | 33 |
+
+Still absent from `file_manager.rb`: the `Gio::ListStore`/`Gtk::SortListModel`/
+`Gtk::FilterListModel`/`Gtk::MultiSelection` chain that feeds the file list
+view, and the 3-worker async load/save/rename task queue — both belong with
+whichever round ports the file list (§6). Still fully absent elsewhere: the
+window, the sidebar, the editor pane and all of its rows, the three task
+dialogs, the identify flow, the alert dialogs, the ASF/WMA backend,
+MusicBrainz, the icons and `po/`.
 
 ---
 
@@ -617,28 +634,40 @@ no applier in the tree.
 
 ## 33. `src/filemanager.py`
 
-→ `lib/file_manager.rb` — **absent**.
+→ `lib/file_manager.rb` — **partial**. Ported: the mimetype → backend
+dispatch (`backend_for`/`file_from_path`, matching upstream's module-level
+`eartagfile_from_path`, minus the WMA branch — see §34) and `Manager`, a
+plain-Ruby-Array model of open files with `is_modified?`/`has_error?`
+bookkeeping and `save_all`.
 
 Not a widget, but every empty state, every sensitivity rule and every toast in
 §2 is a property or signal on it: `is-modified`, `has-error`,
 `is-selected-modified`, `is-busy`, `files` (a list model), `selection-changed`,
 `refresh-needed`, `select-first`, `has-unwritable`,
 `max-recursion-depth-reached`, and the `load_task` / `save_task` /
-`rename_task` progress sources. Nothing in the window can be ported
-independently of it.
+`rename_task` progress sources. None of these GObject properties/signals nor
+the `Gio::ListStore`/`Gtk::SortListModel`/`Gtk::FilterListModel`/
+`Gtk::MultiSelection` chain feeding the file list, nor the 3-worker async
+task queue, exist yet — `Manager` is a bare model, not wired to any widget.
+Nothing in the window can be ported independently of the rest of it.
 
 ## 34. Support files with no component of their own
 
 Needed for the components above to work; each is one `lib/*.rb`. **Present**:
 `async_task.rb`, `entry_limiters.rb`, `extract_tags.rb`, `logger.rb`,
-`misc.rb`, `settings.rb`, `tags.rb`, `validation.rb`. **Absent**:
-`backends/*.rb`, `musicbrainz.rb`, `queue_download.rb`, the event-loop shim,
-`data/icons/` and `po/`.
+`misc.rb`, `settings.rb`, `tags.rb`, `validation.rb`, `backends/file.rb`,
+`backends/file_id3.rb`, `backends/file_mp4.rb`, `backends/file_vorbis.rb`.
+**Absent**: `backends/file_mutagen_asf.rb` (no Ruby equivalent — taglib-ruby
+has no WMA/ASF binding, so `audio/x-ms-wma` and friends have no backend and
+are left out of `FileManager::BACKEND_FOR_MIME`, per the comment in
+`lib/file_manager.rb`), `musicbrainz.rb`, `queue_download.rb`, the event-loop
+shim, `data/icons/` and `po/`.
 
 
 | Upstream | → | Why |
 |---|---|---|
-| `src/backends/file.py` + `file_mutagen_{common,id3,mp4,vorbis,asf}.py` | `lib/backends/*.rb` | the tag model, `TAG_NAMES`, `EXTRA_TAGS`, `CoverType`, per-format supported-tag sets that §11 filters on |
+| `src/backends/file.py` + `file_mutagen_{common,id3,mp4,vorbis}.py` | `lib/backends/file.rb`, `lib/backends/file_{id3,mp4,vorbis}.rb` | **ported**: the tag model, `TAG_NAMES`, `EXTRA_TAGS`, `CoverType`, per-format supported-tag sets that §11 filters on |
+| `src/backends/file_mutagen_asf.py` | — | **absent**, no Ruby WMA/ASF tag library on hand |
 | `src/musicbrainz.py` | `lib/musicbrainz.rb` | `MusicBrainzRecording`/`Release`/`ReleaseGroup`, cover-art fetch — the data behind §24–§29 |
 | `src/utils/asynctask.py` | `lib/async_task.rb` | `progress`, `progress-pulse`, `task-done` — bound to every progress bar |
 | `src/utils/limiters.py` | `lib/entry_limiters.rb` | input filtering mixed into §15 |
@@ -660,4 +689,4 @@ Needed for the components above to work; each is one `lib/*.rb`. **Present**:
 4. **`Adwaita::Application` is noted as broken in the existing port scaffold**, so `HANDLES_OPEN` and the `open` signal in §1 need a `Gtk::Application` route — the CLI/`%U` path behaviour has to be re-derived.
 5. **Async everywhere.** Upstream is `asyncio`-based (`src/_async.py`, `utils/asynctask.py`); `EartagDiscardWarningDialog` is *awaited* for its response. Ruby GTK has no equivalent, so the dialog flow in `show_file_chooser_async` has to be restructured into callbacks without changing what the user sees.
 6. **Dead upstream artifacts** — the three orphaned failure dialogs (§30), the unapplied `.unidentified-status` / `.more-item.compact` / `.listview-boxed-list` CSS (§32), the trash icon on "_Save Image…" (§9), and `default-response: "save"` on a dialog with no `save` response (§30). None should be reproduced; all are recorded so a later parity pass does not read them as gaps.
-7. **Backends are the bulk of the work and are not UI.** ~105 KB of mutagen-specific Python across six files, with no Ruby equivalent of `mutagen`, `Pillow`, `filetype.py`, `aiohttp` or `xxhash` on hand. Settle the tag-reading strategy before any editor component, because §8, §11, §12, §15 and §33 are all shaped by the backend's property lists.
+7. **Backends: the base class and id3/mp4/vorbis formats are now ported** (`lib/backends/file.rb` + `file_{id3,mp4,vorbis}.rb`), using `taglib-ruby` against the real `libtag` C++ library rather than upstream's Python `mutagen` — a different binding with different quirks, not a drop-in. Two gaps remain before §8/§11/§12/§15/§33 (all shaped by the backend's property lists) can build on it cleanly: (a) no ASF/WMA backend exists, since taglib-ruby has no WMA binding; (b) `Backends::EartagFile` is plain Ruby, not `GObject.Object`, so it has no bindable properties yet and cover art is unimplemented (every backend's cover accessors are the same no-op upstream ships only for formats that cannot carry a picture) — the GObject-property binding and `Pillow`-equivalent cover handling still need to be designed before any editor widget binds to a file.
