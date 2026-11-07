@@ -30,7 +30,14 @@ class EditableLabel < Gtk::Overlay
 
       entry.tap do |e|
         e.signal_connect('notify::text') { update_label }
-        e.signal_connect('notify::has-focus') { update_editing }
+        # GtkEntry delegates the actual input focus to its internal GtkText,
+        # so the entry's own "has-focus" never turns true (confirmed against
+        # the real bindings: grab_focus moves focus onto a Gtk::Text child,
+        # and entry.has_focus? stays false even then). The FOCUS_WITHIN state
+        # flag, by contrast, is set on the entry itself whenever it or any
+        # descendant holds focus, so that is what editing? below and this
+        # swap are driven from instead.
+        e.signal_connect('state-flags-changed') { update_editing }
       end
 
       update_editing
@@ -56,7 +63,7 @@ class EditableLabel < Gtk::Overlay
       l.max_width_chars = 128
       l.justify = :center
       l.halign = :center
-      l.set_cursor(Gdk::Cursor.new_from_name('text'))
+      l.set_cursor(Gdk::Cursor.new('text'))
     end
   end
 
@@ -84,7 +91,7 @@ class EditableLabel < Gtk::Overlay
     entry.placeholder_text = value
   end
 
-  def editing? = entry.has_focus?
+  def editing? = entry.state_flags.focus_within?
 
   # Registers a block to run whenever the entry's text changes.
   def on_changed(&block)

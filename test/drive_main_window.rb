@@ -32,6 +32,24 @@ require 'eartag'
 require_relative 'gtk_driver'
 require_relative '../lib/popover_button'
 require_relative '../lib/model_expander_row'
+require_relative '../lib/editable_label'
+require_relative '../lib/album_cover_image'
+require_relative '../lib/tags'
+
+# A minimal stand-in for a Backends::EartagFile, just enough to drive
+# AlbumCoverImage#bind_to_file without needing a real backend that supports
+# cover art (none does yet — see lib/album_cover_image.rb).
+FakeCoverFile = Struct.new(:front_cover, :back_cover)
+
+# A 1x1 red pixel PNG, small enough to inline as raw bytes (no `base64` gem
+# dependency) — just needs to be real image bytes that GdkPixbuf::PixbufLoader
+# can decode.
+TINY_PNG = [
+  137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0,
+  0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 120, 218,
+  99, 100, 248, 207, 80, 15, 0, 3, 134, 1, 128, 90, 52, 125, 107, 0, 0, 0, 0, 73,
+  69, 78, 68, 174, 66, 96, 130
+].pack('C*')
 
 # Fires an app-level action the way the menu or an accelerator would, rather
 # than calling the handler method directly — so the GAction wiring itself is
@@ -230,6 +248,109 @@ GtkDriver.drive(Eartag::Application.new, shots: File.expand_path('../tmp/shots',
     d.check('no third row (model has only two items)') { @expander_row.get_row_at_index(2).nil? }
     d.shot('06-model-expander-row', @expander_window)
     @expander_window.close
+  end
+
+  # EditableLabel is ported (lib/editable_label.rb) but nothing in the
+  # running app builds one yet (the file view/tag entries that would use it
+  # are still absent) — so, as with PopoverButton and ModelExpanderRow
+  # above, the only way to exercise it at all is to build one here by hand.
+  d.step('an editable label starts showing its placeholder') do
+    @editable_window = Gtk::Window.new.tap do |win|
+      win.default_width = 200
+      win.default_height = 80
+      win.child = EditableLabel.new.build.tap do |el|
+        el.placeholder_text = 'No value'
+        @editable_label = el
+      end
+      win.present
+      # EditableLabel's entry is the only focusable widget in this throwaway
+      # window, so GTK's initial-focus logic would otherwise hand it focus
+      # immediately on present — true of any lone focusable widget, not
+      # specific to this component. Clearing focus here isolates the
+      # assertion below to what grab_focus does in the next step.
+      win.set_focus(nil)
+    end
+  end
+
+  d.step('it renders the placeholder, dimmed, with the label shown') do
+    d.check('starts not editing') { @editable_label.editing? == false }
+    d.check('label shows the placeholder text') { @editable_label.label.label == 'No value' }
+    d.check('placeholder is dimmed') { @editable_label.label.has_css_class?('dimmed') }
+    d.shot('07-editable-label-placeholder', @editable_window)
+  end
+
+  d.step('focusing the entry switches it into editing mode') do
+    @editable_label.entry.grab_focus
+  end
+
+  d.step('editing mode hides the label and shows the entry') do
+    d.check('now editing') { @editable_label.editing? == true }
+    d.check('label is hidden while editing') { @editable_label.label.visible? == false }
+    d.shot('08-editable-label-editing', @editable_window)
+  end
+
+  d.step('typing into the entry updates text and fires on_changed') do
+    @editable_label_changes = []
+    @editable_label.on_changed { |text| @editable_label_changes << text }
+    @editable_label.text = 'Artist Name'
+  end
+
+  d.step('the entry, the label and the callback all agree') do
+    d.check('text reads back') { @editable_label.text == 'Artist Name' }
+    d.check('on_changed callback fired with the new text') { @editable_label_changes.include?('Artist Name') }
+    d.check('label text follows the entry, no longer dimmed') do
+      @editable_label.label.label == 'Artist Name' && !@editable_label.label.has_css_class?('dimmed')
+    end
+    @editable_window.close
+  end
+
+  # AlbumCoverImage is ported (lib/album_cover_image.rb) but, like
+  # EditableLabel, has no caller yet (the album-cover button and file view
+  # that would bind it are still absent) — built by hand here, bound to a
+  # fake file both with and without cover data to cover both branches.
+  d.step('an album cover image starts empty') do
+    @cover_window = Gtk::Window.new.tap do |win|
+      win.default_width = 220
+      win.default_height = 220
+      win.child = AlbumCoverImage.new.build.tap { |c| @cover_image = c }
+      win.present
+    end
+  end
+
+  d.step('with no file bound it shows the placeholder') do
+    d.check('is empty') { @cover_image.is_empty? == true }
+    d.check('placeholder page is showing') { @cover_image.visible_child_name == 'no_cover' }
+    d.shot('09-album-cover-empty', @cover_window)
+  end
+
+  d.step('binding a file with no cover data stays on the placeholder') do
+    @cover_image.bind_to_file(FakeCoverFile.new(nil, nil))
+  end
+
+  d.step('still empty, since this fake file has no cover') do
+    d.check('still empty') { @cover_image.is_empty? == true }
+  end
+
+  d.step('binding a file with real front-cover bytes shows the cover') do
+    cover = Backends::Cover.new(nil, TINY_PNG, 'image/png')
+    @cover_image.bind_to_file(FakeCoverFile.new(cover, nil))
+  end
+
+  d.step('the decoded cover is now showing') do
+    d.check('no longer empty') { @cover_image.is_empty? == false }
+    d.check('cover page is showing') { @cover_image.visible_child_name == 'cover_image' }
+    d.check('a pixbuf was decoded onto the image') { !@cover_image.cover_image.pixbuf.nil? }
+    d.shot('10-album-cover-loaded', @cover_window)
+  end
+
+  d.step('unbinding the file goes back to the placeholder') do
+    @cover_image.unbind_from_file
+  end
+
+  d.step('empty again after unbind') do
+    d.check('empty after unbind') { @cover_image.is_empty? == true }
+    d.check('placeholder page is showing again') { @cover_image.visible_child_name == 'no_cover' }
+    @cover_window.close
   end
 
   d.step('quit fires from its own action, the way Ctrl+Q would') do

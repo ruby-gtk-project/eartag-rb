@@ -105,8 +105,9 @@ class AlbumCoverImage < Gtk::Stack
       if @file
         cover = @cover_type == Tags::CoverType::FRONT ? @file.front_cover : @file.back_cover
 
-        if cover&.data
-          cover_image.pixbuf = pixbuf_for(cover)
+        pixbuf = cover&.data && pixbuf_for(cover)
+        if pixbuf
+          cover_image.set_from_pixbuf(pixbuf)
           self.visible_child_name = 'cover_image'
         else
           mark_as_empty
