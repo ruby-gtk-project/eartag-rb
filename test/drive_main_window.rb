@@ -6,11 +6,17 @@
 # .reports/component-inventory.md (the window, the status page / empty state,
 # the primary menu and its three items, all four `app.*` actions the port has
 # wired, the two accelerators it binds, and the two standalone dialogs), gets
-# opened and asserted here.
+# opened and asserted here. It also builds PopoverButton and ModelExpanderRow
+# by hand in throwaway windows, since the inventory counts both as ported but
+# nothing in the running app calls either yet (window.rb and the sidebar are
+# still absent) — without this, "ported" would mean "never run".
 #
 # Deliberately not covered: the 12 file-related actions, the sidebar, the
-# editor pane and the MusicBrainz/AcoustID identify flow. The inventory is
-# explicit that none of that is ported yet — there is no widget for this
+# editor pane, the model/backend layer (EartagFile + the id3/mp4/vorbis
+# backends — display-free code with no widget to drive; see `failures` for
+# why that gap is reported rather than silently left) and the
+# MusicBrainz/AcoustID identify flow. The inventory is explicit that none of
+# the window/sidebar/editor is ported yet — there is no widget for this
 # script to drive, because the port has not written one.
 #
 # Run it from the dev shell: xvfb-run ruby test/drive_main_window.rb
@@ -23,6 +29,8 @@ $LOAD_PATH.unshift(File.expand_path('../lib', __dir__))
 
 require 'eartag'
 require_relative 'gtk_driver'
+require_relative '../lib/popover_button'
+require_relative '../lib/model_expander_row'
 
 # Fires an app-level action the way the menu or an accelerator would, rather
 # than calling the handler method directly — so the GAction wiring itself is
@@ -132,6 +140,70 @@ GtkDriver.drive(Eartag::Application.new, shots: File.expand_path('../tmp/shots',
       d.shot('04-about', dialog)
       dialog.close
     end
+  end
+
+  # PopoverButton and ModelExpanderRow are ported (per
+  # .reports/component-inventory.md) but have no caller yet: window.rb and the
+  # sidebar they belong to are still absent. Nothing in the running app builds
+  # one, so the only way to exercise them at all is to build one here, by
+  # hand, in a throwaway window.
+  d.step('a popover button opens and closes its popover') do
+    @popover_button_window = Gtk::Window.new.tap do |win|
+      win.default_width = 200
+      win.default_height = 100
+      win.child = PopoverButton.new.tap do |pb|
+        pb.child = Gtk::Label.new('menu')
+        pb.popover = Gtk::Popover.new.tap { |p| p.child = Gtk::Label.new('popover content') }
+        @popover_button = pb
+      end
+      win.present
+    end
+  end
+
+  d.step('popover button toggles the popover via its toggle button') do
+    d.check('starts closed') { @popover_button.popover.visible? == false }
+    @popover_button.toggle_button.active = true
+  end
+
+  d.step('activating the toggle opened the popover') do
+    d.check('popover is visible') { @popover_button.popover.visible? == true }
+    d.check('toggle button is active') { @popover_button.toggle_button.active? == true }
+    d.shot('05-popover-button', @popover_button_window)
+    @popover_button.toggle_button.active = false
+  end
+
+  d.step('releasing the toggle closed the popover') do
+    d.check('popover is closed again') { @popover_button.popover.visible? == false }
+    @popover_button_window.close
+  end
+
+  d.step('a model expander row fills its rows from a list model') do
+    model = Gio::ListStore.new(Gtk::StringObject).tap do |store|
+      store.append(Gtk::StringObject.new('one'))
+      store.append(Gtk::StringObject.new('two'))
+    end
+
+    @expander_window = Gtk::Window.new.tap do |win|
+      win.default_width = 300
+      win.default_height = 200
+      win.child = Adwaita::PreferencesGroup.new.tap do |group|
+        group.add(ModelExpanderRow.new.tap do |row|
+          row.title = 'Expander'
+          row.expanded = true
+          row.bind_model(model) { |item| Adwaita::ActionRow.new.tap { |r| r.title = item.string } }
+          @expander_row = row
+        end)
+      end
+      win.present
+    end
+  end
+
+  d.step('the expander row shows one row per model item') do
+    d.check('first row title matches the model') { @expander_row.get_row_at_index(0).title == 'one' }
+    d.check('second row title matches the model') { @expander_row.get_row_at_index(1).title == 'two' }
+    d.check('no third row (model has only two items)') { @expander_row.get_row_at_index(2).nil? }
+    d.shot('06-model-expander-row', @expander_window)
+    @expander_window.close
   end
 
   d.step('quit fires from its own action, the way Ctrl+Q would') do
