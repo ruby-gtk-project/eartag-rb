@@ -22,6 +22,7 @@
 # Run it from the dev shell: xvfb-run ruby test/drive_main_window.rb
 
 require 'tmpdir'
+require 'fileutils'
 
 ENV['XDG_CONFIG_HOME'] = Dir.mktmpdir
 
@@ -44,11 +45,11 @@ GtkDriver.drive(Eartag::Application.new, shots: File.expand_path('../tmp/shots',
 
   d.step('the window is up') do
     d.check('window is visible') { app.window.visible? }
-    d.check('status page is the content') { app.toolbar_view.content == app.status_page }
-    d.check('status page names the app') { app.status_page.title == Eartag::Application::APP_NAME }
-    d.check('status page has the empty-state hint') do
-      app.status_page.description == 'Open or drag in some audio files to edit their metadata.'
+    d.check('container stack is the content') { app.toolbar_view.content == app.container_stack }
+    d.check('no-file empty state is shown first') do
+      app.container_stack.visible_child_name == 'no_file'
     end
+    d.check('status page names the app') { app.status_page.title == Eartag::Application::APP_NAME }
     d.check('menu has three items') { app.primary_menu.n_items == 3 }
     d.check('menu item labels') do
       [0, 1, 2].map { |i| app.primary_menu.get_item_attribute_value(i, 'label', nil).to_s } ==
@@ -65,6 +66,31 @@ GtkDriver.drive(Eartag::Application.new, shots: File.expand_path('../tmp/shots',
     d.check('preferences has no accelerator') { app.app.get_accels_for_action('app.preferences') == [] }
     d.check('about has no accelerator') { app.app.get_accels_for_action('app.about') == [] }
     d.shot('01-main-window')
+  end
+
+  d.step('the no-file empty state is wired to the file manager') do
+    d.check('no_file widget is a NoFile') { app.no_file.is_a?(NoFile) }
+    d.check('recursive checkbox matches the setting') do
+      app.no_file.open_recursive_check.active? == app.settings.open_folders_recursively?
+    end
+    d.check('toggling the checkbox writes the setting') do
+      app.no_file.open_recursive_check.active = !app.settings.open_folders_recursively?
+      app.settings.open_folders_recursively? == app.no_file.open_recursive_check.active?
+    end
+
+    # The native file-chooser portal cannot be driven headlessly, so this
+    # exercises the rest of the pipeline directly: handing the file manager a
+    # real file is what show_open_file_dialog's callback would do with the
+    # path(s) the portal returned.
+    tmp_mp3 = File.join(Dir.mktmpdir, 'drive.mp3')
+    FileUtils.cp(File.expand_path('fixtures/sample.mp3', __dir__), tmp_mp3)
+    app.send(:load_paths, [tmp_mp3])
+
+    d.check('file manager picked up the loaded file') { app.file_manager.files.size == 1 }
+    d.check('container switched to the files-open page') do
+      app.container_stack.visible_child_name == 'files_open'
+    end
+    d.check('status page reports the open file count') { app.status_page.description == '1 file(s) open' }
   end
 
   d.step('preferences opens from its menu action') do

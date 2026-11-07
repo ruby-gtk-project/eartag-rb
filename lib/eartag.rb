@@ -27,5 +27,8 @@ require_relative 'file_manager'
 require_relative 'popover_button'
 require_relative 'model_expander_row'
 require_relative 'file_info_label'
+require_relative 'editable_label'
+require_relative 'album_cover_image'
+require_relative 'no_file'
 
 require_relative 'eartag/application'
