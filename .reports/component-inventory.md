@@ -382,20 +382,26 @@ properties through the entry's delegate. `style.css` styles
 
 ## 17. `src/utils/widgets.py` (`EartagPopoverButton`)
 
-→ `lib/popover_button.rb` — **absent**.
+→ `lib/popover_button.rb` — **ported**.
 
 `Gtk.Box` holding a `Gtk.ToggleButton` whose `active` is bidirectionally bound to
 the popover's `visible`; a `GtkMenuButton` replacement that keeps arrow
-navigation working. `accessible-role: group` with a LABELLED_BY relation.
+navigation working. `accessible-role: group` is set; the LABELLED_BY relation
+is not — `Gtk::Accessible#update_relation` raises `NotImplementedError` from
+gobject-introspection when passed a GtkAccessibleRelation array argument, so
+this is a screen-reader labelling gap, not a behavioral one.
 
 ## 18. `src/utils/widgets.py` (`EartagModelExpanderRow`)
 
-→ `lib/model_expander_row.rb` — **absent**.
+→ `lib/model_expander_row.rb` — **ported**.
 
 `Adw.ExpanderRow` subclass that reaches for the internal template child named
 `list` (the second, revealed `GtkListBox`) and re-exports `bind_model`,
-`get_row_at_index` and `set_placeholder`. Used by §24 and §26. In the Ruby
-bindings this internal-child trick is the risky part of the port.
+`get_row_at_index` and `set_placeholder`. Used by §24 and §26. Proved out in
+the Ruby bindings: `get_template_child(Adwaita::ExpanderRow, "list")` returns
+the real inner `Gtk::ListBox`, and `bind_model`/`get_row_at_index`/
+`set_placeholder` all delegate to it correctly (verified live, in a realized
+window, with a `Gio::ListStore` of `Gtk::StringObject`s).
 
 ## 19. `src/utils/tagselector.py` + `src/ui/tagselectorbutton.blp`
 

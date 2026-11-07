@@ -22,4 +22,9 @@ require_relative 'backends/file_vorbis'
 require_relative 'backends/file_mp4'
 require_relative 'file_manager'
 
+# Small reusable widgets the larger views are built from. Required here for
+# the same reason as the layers above: loading the app loads the whole port.
+require_relative 'popover_button'
+require_relative 'model_expander_row'
+
 require_relative 'eartag/application'
