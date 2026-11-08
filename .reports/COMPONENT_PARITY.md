@@ -3,8 +3,14 @@
 | | |
 |---|---|
 | Upstream | `main` @ `ad8eadd6a98251a2e6386372486b577c22cf19fa` |
-| Port | `ruby` @ `4454814` |
-| Units with full parity | 2 / 35 (see Totals) |
+| Port | `ruby` @ `30a394c` |
+| Units with full parity | 5 / 35 (see Totals) |
+
+Updated this round from the prior pass (`ruby` @ `4454814`): two commits
+landed since — `lib/no_file.rb` (the empty state) and `lib/editable_label.rb`
+/ `lib/album_cover_image.rb` were ported and driven, taking
+`test/drive_main_window.rb` from 37/37 to **59/59**. The sections below are
+amended in place rather than rewritten from scratch.
 
 This ledger reads `.reports/component-inventory.md` (this round's
 `component-identification` deliverable) as the per-unit map and checks each
@@ -18,7 +24,7 @@ does not re-derive.
 
 | Axis | Upstream | Port | Gap |
 |---|---:|---:|---:|
-| Widget classes (own `Gtk.Widget` subclass) | 24 | 5 | 19 |
+| Widget classes (own `Gtk.Widget` subclass) | 24 | 7 | 17 |
 | `.blp`/`.ui` template roots | 23 + 1 | 0 (correspondence — house style, see below) | — |
 | `app.*` actions | 16 | 4 | 12 |
 | `win.*` actions | 1 | 0 | 1 |
@@ -65,7 +71,7 @@ has not built, not a difference in how it is expressed.
 | `app.delete_all_tags` | — | no |
 
 Driven this round: `ruby test/drive_main_window.rb` under
-`nix develop -- xvfb-run -a` — 37/37 checks pass, including the 4 implemented
+`nix develop -- xvfb-run -a` — 59/59 checks pass, including the 4 implemented
 actions firing from the menu and `<Ctrl>q` closing the window. The 12 missing
 actions and 7 missing accelerators are not drivable because nothing installs
 them; that is the gap, not an untested pass.
@@ -111,15 +117,48 @@ caller yet — nothing in the running app constructs either one — so "parity"
 here means "the widget itself is correct", not "the feature that uses it
 works", because that feature (the window, the sidebar) does not exist.
 
-## Unit: empty state (`EartagNoFile`) — `src/window.py` + `src/ui/nofile.blp`
+## Unit: empty state (`EartagNoFile`) — `src/window.py` + `src/ui/nofile.blp` → `lib/no_file.rb`
 
-Partially present: `lib/eartag/application.rb` builds an `Adw.StatusPage`
-with the right title and description string (driven, confirmed), satisfying
-the window's fallback content. It does **not** build `nofile.blp`'s own
-widgets: the two `pill`/`suggested-action` buttons (`Open File…`, `Open
-Folder…`), the `Gtk.CheckButton` for "search subfolders", or their
-`SizeGroup`. **Gap**: the empty state has a status page and no way to act on
-it.
+Full widget set, built and wired this round: `Adw.StatusPage` with upstream's
+title/description, the two `pill`/`suggested-action` buttons (`Open File`,
+`Open Folder`), the `Gtk.CheckButton` ("Include Files from Subfolders") bound
+two-way to the `open-folders-recursively` GSetting, and the `Gtk.SizeGroup`
+equalising the two buttons. `lib/eartag/application.rb` now constructs this
+as `no_file` and adds it to the container stack under the `no_file` child
+name — it is the real component, not a stand-in.
+
+Driven this round (checks 14–18 approx.): `app.no_file.is_a?(NoFile)`, the
+checkbox starts in sync with the GSetting, and flipping the checkbox's
+`active` flips the GSetting back. **Unit has full component parity** on the
+empty state's own widgets.
+
+Still a gap, and not claimed otherwise: `lib/eartag/application.rb` also
+keeps a *second*, separate `Adw.StatusPage` (`status_page`) as the
+placeholder for the "files open" stack child, since the real file view
+(§"units not started" below) does not exist yet. The two are different
+things — `no_file` is the real `EartagNoFile` port, `status_page` is still a
+stand-in for `EartagFileView`.
+
+## Unit: shared widgets, round 2 — `src/utils/widgets.py` → `lib/editable_label.rb`, `lib/album_cover_image.rb`
+
+| Widget | Upstream | Port | Verdict |
+|---|---|---|---|
+| `EartagEditableLabel` | `Gtk.Overlay` + `Gtk.Editable` composite: label visible when unfocused, entry visible and focused on click/tap, commits on Enter/focus-out | `lib/editable_label.rb`, same behaviour | parity on the widget itself |
+| `EartagAlbumCoverImage` | `Gtk.Stack` switching between a placeholder page and a decoded cover `Gtk.Picture`, driven by `bind_to_file`/unbind | `lib/album_cover_image.rb`, same stack/bind/unbind behaviour, pixbuf decoded from front-cover bytes | parity on the widget itself |
+
+Driven this round (checks 19–28): typing into the entry updates the entry,
+the label text and fires the `on_changed` callback together; the label stays
+hidden while editing. The cover image starts empty/placeholder, stays on the
+placeholder when bound to a file with no cover bytes, switches to a decoded
+picture when bound to a file with real front-cover bytes, and returns to the
+placeholder on unbind.
+
+Same caveat as `PopoverButton`/`ModelExpanderRow` above: **both widgets have
+component parity in isolation**, and neither is wired into a real caller
+yet — `EartagTagEditableLabel` (which would use `EditableLabel` for every tag
+field) and `EartagAlbumCoverButton` (which would use `AlbumCoverImage`) do
+not exist. "Parity" here means the widget itself matches upstream's widget,
+not that the feature that would use it works.
 
 ## Units not started
 
@@ -128,7 +167,9 @@ is no port file to drive:
 
 - **The main window** (`lib/window.rb`) — 34 template children, 3 breakpoints,
   the sidebar list, the drop-target overlay, toasts, the 11-item primary menu.
-- **The editor pane / file view** and every tag-entry row.
+- **The editor pane / file view** and every tag-entry row (`EditableLabel`
+  and `AlbumCoverImage` are now ported per the unit above, but nothing in the
+  running app constructs either one yet — their callers are in this list).
 - **The file list model/filter/selection chain** (`Gio::ListStore` →
   `Gtk::SortListModel` → `Gtk::FilterListModel` → `Gtk::MultiSelection`) and
   the 3-worker async load/save/rename queue.
@@ -145,15 +186,20 @@ is no port file to drive:
   inventory, but nothing calls it).
 - **The ASF/WMA backend.**
 
-None of this is covered by the 37-check drive script, by design — its own
+None of this is covered by the 59-check drive script, by design — its own
 header comment says so. A unit this ledger has not reached is a gap, not an
 unverified pass.
 
 ## Conclusion
 
-2 of 35 identified units (preferences, shortcuts) have full four-axis parity.
-2 more (application shell, shared widgets) are partially built and partially
-driven, with named, counted gaps above. 1 (empty state) is started and
-missing most of its widgets. The remaining ~30 units — the window, the
-sidebar, the editor, every dialog, the identify flow, the rename flow, the
-ASF backend — do not exist in the port at all.
+5 of 35 identified units (preferences, shortcuts, empty state, and the two
+shared-widget units covering 4 widgets total) have full four-axis parity on
+the widgets themselves. 1 more (application shell) is partially built and
+partially driven, with named, counted gaps above (12 of 16 `app.*` actions
+and 7 of 9 accelerators missing, the `win.*` action missing, no
+`HANDLES_OPEN`). The remaining ~29 units — the window, the sidebar, the
+editor pane and every widget it is built from beyond the two now-ported
+leaf widgets, every dialog, the identify flow, the rename flow, the ASF
+backend — do not exist in the port at all. No unit claimed as "parity" here
+exercises a real upstream user flow end to end; the app still cannot open a
+file and show its tags.

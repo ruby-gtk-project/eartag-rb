@@ -12,19 +12,19 @@ Legend: ✅ exists on `ruby` · ⚠️ partial · ❌ missing
 |---|---|---|---|---|
 | 1 | `src/main.py` | Application (`Adw.Application`) | `lib/eartag/application.rb` | ⚠️ partial — actions, menu, about/shortcuts/preferences wiring, style/icon loading all present; but it builds a placeholder `Adw.StatusPage` as the window content instead of the real `EartagWindow` |
 | 2 | `src/window.py` (`EartagWindow`) + `src/ui/window.blp` | Window (`Adw.ApplicationWindow`, template) | `lib/window.rb` | ❌ missing — the split view (sidebar file list + content), header bars, save button, drag-and-drop overlay, search bar, selection action bar, loading progress bar, and the `primary_menu` (Open File/Folder, Rename, Extract, Identify, Undo, Remove tags, Shortcuts, Preferences, About) all live here |
-| 3 | `src/window.py` (`EartagNoFile`) + `src/ui/nofile.blp` | Bin, template | `lib/no_file.rb` | ❌ missing — "open file" / "open folder (recursively)" empty state, bound to the `open-folders-recursively` GSetting; `application.rb`'s `status_page` is a stand-in, not this component |
+| 3 | `src/window.py` (`EartagNoFile`) + `src/ui/nofile.blp` | Bin, template | `lib/no_file.rb` | ✅ exists and is wired into `application.rb`'s `no_file` method (driven) — "Open File"/"Open Folder" buttons, the recursive-open checkbox bound to the `open-folders-recursively` GSetting, and the `SizeGroup`. `application.rb`'s separate `status_page` is still a second, unrelated stand-in for the real file-view stack child (see row 7) |
 | 4 | `src/filemanager.py` (`EartagFileManager`) | Model (`GObject.Object`) | `lib/file_manager.rb` | ✅ exists |
 | 5 | `src/filelist.py` (`EartagFileListItem`) + `src/ui/filelistitem.blp` | Row (`Gtk.Box`, template) | `lib/file_list_item.rb` | ❌ missing |
 | 6 | `src/filelist.py` (`EartagFileList`) | `Gtk.ListView` subclass | `lib/file_list.rb` | ❌ missing — sidebar list, multi-select mode, search filter |
 | 7 | `src/fileview.py` (`EartagFileView`) + `src/ui/fileview.blp` | Stack, template | `lib/file_view.rb` | ❌ missing — the tag-editing page shown once files are open |
 | 8 | `src/fileview.py` (`EartagAlbumCoverButton`) + `src/ui/albumcoverbutton.blp` | Bin, template | `lib/album_cover_button.rb` | ❌ missing — cover art popover menu (remove/set from file/download), file filter |
-| 9 | `src/utils/widgets.py` (`EartagAlbumCoverImage`) + `src/ui/albumcoverimage.blp` | `Gtk.Stack` subclass, template | `lib/album_cover_image.rb` | ❌ missing |
+| 9 | `src/utils/widgets.py` (`EartagAlbumCoverImage`) + `src/ui/albumcoverimage.blp` | `Gtk.Stack` subclass, template | `lib/album_cover_image.rb` | ✅ exists and driven standalone (binds a file with no cover → placeholder; binds a file with front-cover bytes → decodes a pixbuf and shows it; unbind → back to placeholder). Not yet wired into any real caller — `EartagAlbumCoverButton` (row 8) that would use it still does not exist |
 | 10 | `src/fileview.py` (`EartagFilenameRow`) + `src/ui/filenamerow.blp` | `Adw.EntryRow` subclass, template | `lib/filename_row.rb` | ❌ missing |
 | 11 | `src/fileview.py` (`EartagExtraTagRow`, subclasses `EartagTagEntryRow`) | Row | folds into `lib/tag_entry.rb` | ❌ missing |
 | 12 | `src/fileview.py` (`EartagMoreTagsGroup`) + `src/ui/moretagsgroup.blp` + `src/ui/moretagsgroupfactory.ui` | `Gtk.Box` subclass, template + `GtkListItem` factory | `lib/more_tags_group.rb` | ❌ missing — the "more tags" expander that lists tags not shown by default, built per-filetype from `allowed_tags_for_filetype`; **uses** `ModelExpanderRow` (#16), is not the same component as it |
 | 13 | `src/fileview.py` (`EartagFileInfoLabel`) | `Gtk.Label` subclass | `lib/file_info_label.rb` | ✅ exists |
 | 14 | `src/tagentry.py` (`EartagTagEntryManager`, `EartagTagEntryBase`, `EartagTagEntry`, `EartagTagEntryRow`, `EartagTagEditableLabel`) | Mixins + `Gtk.Entry`/`Adw.EntryRow`/editable-label subclasses | `lib/tag_entry.rb` | ❌ missing — every tag field in the file view is built from this |
-| 15 | `src/utils/widgets.py` (`EartagEditableLabel`) | `Gtk.Overlay`+`Gtk.Editable` composite | `lib/editable_label.rb` | ❌ missing |
+| 15 | `src/utils/widgets.py` (`EartagEditableLabel`) | `Gtk.Overlay`+`Gtk.Editable` composite | `lib/editable_label.rb` | ✅ exists and driven standalone (shows the label when not focused, swaps to the entry and hides the label while editing, typing updates the entry/label/`on_changed` callback together). Not yet wired into any real caller — `EartagTagEditableLabel` (row 14, part of `tagentry.py`) that would use it still does not exist |
 | 16 | `src/utils/widgets.py` (`EartagPopoverButton`) | `Gtk.Box` subclass | `lib/popover_button.rb` | ✅ exists |
 | 17 | `src/utils/widgets.py` (`EartagModelExpanderRow`) | `Adw.ExpanderRow` subclass | `lib/model_expander_row.rb` | ✅ exists |
 | 18 | `src/utils/tagselector.py` (`EartagTagSelectorButton`) + `src/ui/tagselectorbutton.blp` | `Gtk.MenuButton` subclass, template | `lib/tag_selector_button.rb` | ❌ missing — lets a user add one of the tags not currently shown |
@@ -71,18 +71,21 @@ Legend: ✅ exists on `ruby` · ⚠️ partial · ❌ missing
   dialogs, file list/view, the three tool dialogs, identify's MusicBrainz
   rows, and the small reusable widgets), plus the support/backend layer and
   one backend format (WMA) with no port file.
-- On `ruby`: **18** of those are present (support layer, three of four
-  backends, settings, style, logger, preferences, shortcuts, the two generic
-  reusable widgets `PopoverButton`/`ModelExpanderRow`, and `FileInfoLabel`).
-  `Application` is partially wired (actions/menu/about work; it does not yet
-  build the real window).
+- On `ruby`: **21** of those are present (support layer, three of four
+  backends, settings, style, logger, preferences, shortcuts, the four generic
+  reusable widgets `PopoverButton`/`ModelExpanderRow`/`EditableLabel`/
+  `AlbumCoverImage`, `FileInfoLabel`, and the empty-state view `NoFile`).
+  `Application` is partially wired (actions/menu/about work and it now builds
+  the real `NoFile` empty state; it does not yet build the real window or
+  file view).
 - **Not started at all:** the main window and its split view, the sidebar
-  file list, the tag-editing file view and everything it is built from
-  (album cover, filename row, more-tags group, tag entries), the
-  extract/rename/identify dialogs and all of identify's MusicBrainz-backed
-  rows, the five warning/error alert dialogs, the preview-selector and
-  tag-selector popovers, the queued downloader, the MusicBrainz backend
-  model, and the WMA file backend.
+  file list, the tag-editing file view and everything else it is built from
+  (album cover *button*, filename row, more-tags group, tag entries — note
+  `EditableLabel` and `AlbumCoverImage` themselves are now ported, but their
+  callers are not), the extract/rename/identify dialogs and all of identify's
+  MusicBrainz-backed rows, the five warning/error alert dialogs, the
+  preview-selector and tag-selector popovers, the queued downloader, the
+  MusicBrainz backend model, and the WMA file backend.
 
 ## Notes for the next pass
 

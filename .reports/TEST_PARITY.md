@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Upstream | `main` @ `ad8eadd6a98251a2e6386372486b577c22cf19fa` |
-| Port | `ruby` @ `4454814` |
+| Port | `ruby` @ `30a394c` |
 | Upstream tests | 47 |
 | Ported | 0 |
 | Gaps | 47 |
@@ -25,7 +25,7 @@ bundle. This is not "0 tests ported, suite green" — it is 0 tests ported and
 the harness that would run them does not start. A suite that has never
 executed is a gap in its own right, independent of the 47 rows below.
 
-The 37-check `test/drive_main_window.rb` script (verified this round: 37/37,
+The 59-check `test/drive_main_window.rb` script (verified this round: 59/59,
 `DRIVE OK`) is a different thing entirely — it drives GTK widgets headlessly
 and is not a port of any upstream test. Upstream's 47 tests are plain
 `unittest` functions over pure logic (tag backends, MusicBrainz identify,
@@ -141,10 +141,12 @@ already wrote and never tested.
 
 ## Extra
 
-- `test/drive_main_window.rb` — 37 checks driving the window shell, the
-  preferences dialog, the shortcuts dialog, the about dialog, `PopoverButton`
-  and `ModelExpanderRow`. Verified this round: `ruby test/drive_main_window.rb`
-  under `nix develop … xvfb-run -a` reports **37 of 37 checks passed, DRIVE
+- `test/drive_main_window.rb` — 59 checks driving the window shell, the
+  preferences dialog, the shortcuts dialog, the about dialog, the empty-state
+  view, and four shared widgets (`PopoverButton`, `ModelExpanderRow`,
+  `EditableLabel`, `AlbumCoverImage`). Verified this round:
+  `ruby test/drive_main_window.rb`
+  under `nix develop … xvfb-run -a` reports **59 of 59 checks passed, DRIVE
   OK**. None of these checks maps to an upstream test — upstream has no
   widget-level test suite at all — so they are extra, not parity.
 
@@ -152,8 +154,9 @@ already wrote and never tested.
 
 **0 / 47.** Every upstream test is a gap, and the RSpec harness that would
 eventually hold the Ruby equivalents does not load. The one green signal this
-round (`DRIVE OK`, 37/37) covers the application shell and two shared
-widgets; it says nothing about the model/backend layer, the identify flow, or
+round (`DRIVE OK`, 59/59) covers the application shell, the empty state and
+four shared widgets; it says nothing about the model/backend layer, the
+identify flow, or
 the rename/filename-validation logic that the 38 non-widget upstream tests
 exist to pin, and three of those five suites (`test_musicbrainz`,
 `test_cleanup_filename`, `test_filename_valid`) have no port file at all to

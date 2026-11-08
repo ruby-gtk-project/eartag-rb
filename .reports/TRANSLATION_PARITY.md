@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Upstream | `main` @ `ad8eadd6a98251a2e6386372486b577c22cf19fa` |
-| Port | `ruby` @ `4454814` |
+| Port | `ruby` @ `30a394c` |
 | Domain | `eartag` (upstream app id `app.drey.EarTag`; confirm against `po/meson.build` before binding) |
 | Upstream messages | 214 distinct `(ctxt, id)` keys |
 | Ported | 0 |
@@ -54,6 +54,10 @@ none of them through a translation marker.
 | — | `Search for files in subfolders` | `src/ui/settings.blp` | `lib/preferences_dialog.rb` (literal) | **gap** |
 | shortcut window | `Open files` | `src/ui/shortcuts.blp` | `lib/shortcuts_dialog.rb` (literal) | **gap** |
 | shortcut window | `Save all modified files` | `src/ui/shortcuts.blp` | `lib/shortcuts_dialog.rb` (literal) | **gap** |
+| — | `Open File` | `src/ui/nofile.blp` | `lib/no_file.rb` (literal) | **gap** |
+| — | `Open Folder` | `src/ui/nofile.blp` | `lib/no_file.rb` (literal) | **gap** |
+| — | `Include Files from Subfolders` | `src/ui/nofile.blp` | `lib/no_file.rb` (literal) | **gap** |
+| — | `When opening a folder, include files from its subfolders` | `src/ui/nofile.blp` | `lib/no_file.rb` (literal tooltip) | **gap** |
 
 (Full 214-row table is reproducible from the generated catalogues; these
 rows are the ones already verified on screen by this round's drive run and

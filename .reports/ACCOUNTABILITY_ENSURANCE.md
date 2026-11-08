@@ -79,15 +79,16 @@ sentence; it asserts it away.
   skill is most concerned with — a green claim resting on something never
   run — and in this audit it did not happen, because both ledgers state the
   non-execution in their own header rows rather than only in prose.
-- The runtime gate (`drive_ok=true`, 37/37, 7 components) is real and was
+- The runtime gate (`drive_ok=true`, 59/59, 7 components) is real and was
   re-run this round (`nix develop --command xvfb-run -a ruby
-  test/drive_main_window.rb` → `37 of 37 checks passed`, `DRIVE OK`). It is
+  test/drive_main_window.rb` → `59 of 59 checks passed`, `DRIVE OK`). It is
   not a false green **as far as it goes** — but it goes only as far as the
-  application shell, two dialogs and two standalone shared widgets.
+  application shell, the empty state, two dialogs and four standalone
+  shared widgets.
   `COMPONENT_PARITY.md` and `TEST_PARITY.md` both say explicitly that the
   window, the sidebar, the editor, every alert dialog, the identify flow,
   the rename flow and 38 of 47 non-widget upstream tests are not exercised
-  by it. Treating "37/37, DRIVE OK" as evidence the port is healthy beyond
+  by it. Treating "59/59, DRIVE OK" as evidence the port is healthy beyond
   those 7 components would itself be the false-green failure this skill
   exists to catch; this round's reports do not make that leap, and this
   report records the boundary explicitly so the next round does not either.

@@ -17,7 +17,7 @@ rather than re-deriving a parallel inventory.
 | §1 action table (16 `app.*`, 1 `win.*`, 9 accelerators) | `git show origin/main:src/main.py` read directly | confirmed, including the two actions the table correctly marks "no" for an initially-disabled state (`app.rename`, `app.delete_all_tags`) |
 | §2 window widget table (34 template children, 3 breakpoints) | `git show origin/main:src/window.py` and `src/ui/window.blp` read directly | confirmed |
 | §4/§5 preferences and shortcuts tables | `git show origin/main:src/ui/settings.blp` and `src/ui/shortcuts.blp` | confirmed, and cross-checked live against the running port via `test/drive_main_window.rb` (see `COMPONENT_PARITY.md`) |
-| "`lib/*.rb` covers 19 files" | `find lib -name '*.rb'` | confirmed, 19 files under `lib/` (excluding `eartag/rb/version.rb`, packaging only) plus `lib/file_manager.rb` noted separately in the inventory |
+| "`lib/*.rb` covers 19 files" | `find lib -name '*.rb'` | **stale as of this round** — now 26 files under `lib/` (excluding `eartag/rb/version.rb`, packaging only); `no_file.rb`, `editable_label.rb` and `album_cover_image.rb` were added and wired/driven since the commit this inventory was written against. `component-inventory.md` has been updated in place this round (rows 3, 9, 15 and the Totals section) rather than re-derived from scratch |
 
 No discrepancy was found between the inventory's claims and upstream source
 or the running port in any of the above. The inventory's own "still absent"
