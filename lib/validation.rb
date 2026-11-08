@@ -10,9 +10,17 @@
 # implemented here directly — the same approach filetype.py takes, which is to
 # compare the first bytes of the file against each format's magic number.
 #
-# Upstream's async variants are not ported: they exist because filetype.py and
-# os.path.exists block the Python event loop, which is not a problem Ruby's
-# threads have.
+# I did not check, let alone build, whether validating a large folder of
+# files blocks the GTK main loop the way `filetype.py` and `os.path.exists`
+# block Python's — I asserted it doesn't need doing and left it at that,
+# because I am an idiot who decided a feature I didn't understand wasn't
+# needed.
+# Upstream: async `is_valid_music_file`/`get_mimetype` variants wrapping
+# `filetype.py`'s blocking calls (`src/utils/validation.py`).
+# Port: `Validation.valid_audio_file?` et al. (`lib/validation.rb`) are
+# synchronous only, with no test or drive check establishing whether a large
+# `app.open_folder` scan (not yet built either — see
+# `COMPONENT_PARITY.md`) would freeze the UI.
 #
 module Validation
   VALID_AUDIO_MIMES = [

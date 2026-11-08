@@ -48,5 +48,7 @@ Appraisal.*.gemfile.lock
 .floss_funding.*.lock
 
 # nix/ is the runtime gemdir for flake.nix: bundlerEnv needs its lock and
-# gemset committed or the app cannot be built reproducibly.
+# gemset committed or the app cannot be built reproducibly. nix/test/ is the
+# second bundle (kettle-test + rspec, see flake.nix) and needs the same.
 !nix/Gemfile.lock
+!nix/test/Gemfile.lock

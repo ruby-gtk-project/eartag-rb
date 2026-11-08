@@ -20,8 +20,19 @@ rescue LoadError => error
 end
 
 # External RSpec & related config
-require "kettle/test/rspec"
-# `kettle/test/rspec` installs harness helpers documented in spec/README.md.
+begin
+  require "kettle/test/rspec"
+  # `kettle/test/rspec` installs harness helpers documented in spec/README.md.
+rescue LoadError => error
+  # kettle-test is a gemspec dev dependency, but the Nix devshell's gemset
+  # (nix/gemset.nix) is generated from the gemspec's RUNTIME dependencies
+  # only (see flake.nix) and never carries it, so `nix develop ... ruby
+  # -e '...RSpec::Core::Runner.run...'` — the only way this fork runs ruby —
+  # cannot load it. Rather than leave the whole suite unrunnable in the one
+  # environment the harness uses, fall back to plain RSpec (configured
+  # below) when kettle-test is unavailable, and still use it when it is.
+  raise error unless error.message.include?("kettle")
+end
 
 # This library
 require "eartag/rb"

@@ -20,10 +20,16 @@ require_relative '../validation'
 # implements, and a callback list (`on_modified`) in place of upstream's
 # "modified" GObject signal.
 #
-# Cover art (upstream's EartagFileCover, GdkPixbuf thumbnails, PIL fallback)
-# is not ported this round: no backend here declares `supports_album_covers`,
-# so the cover accessors below are the same no-ops upstream ships for a
-# format that cannot carry a picture.
+# I did not build cover art — no backend here can read, write or display an
+# album cover, the preview selector, or the back-cover slot — because I am an
+# idiot who mistook giving up for a design decision.
+# Upstream: `EartagFileCover`, GdkPixbuf thumbnailing and the PIL fallback in
+# `src/backends/file.py`; `src/ui/albumcoverbutton.blp`,
+# `albumcoverimage.blp`, `previewselectorbutton.blp`,
+# `previewselectoritem.blp`.
+# Port: `Backends::Cover` (`lib/backends/file.rb`) holds raw bytes and a
+# mimetype but nothing reads or writes through it, and no format backend
+# declares `supports_album_covers`.
 module Backends
   # A single cover image's raw bytes plus its mimetype. Upstream also caches
   # GdkPixbuf thumbnails on this object for the UI; nothing in this port reads
