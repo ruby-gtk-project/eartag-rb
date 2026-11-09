@@ -50,7 +50,6 @@ GEM
     red-colors (0.5.0)
       json
       matrix
-    taglib-ruby (2.0.0)
 
 PLATFORMS
   ruby
@@ -59,7 +58,6 @@ PLATFORMS
 DEPENDENCIES
   adwaita
   gtk4
-  taglib-ruby
 
 BUNDLED WITH
    2.6.9
